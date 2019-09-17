@@ -1,0 +1,12 @@
+Parameter,Selected Value,Units,Source
+Ksat,115,cm/h,"Thompson et al. 2008, average of 20% SiL mixtures"
+BD,1.24,g/cm^3,"Thompson et al. 2008, average of 20% SiL mixtures post-test"
+MHC,0.20,g/g,"Thompson et al. 2008, average of 20% SiL mixtures post-test"
+theta_r,0.04,-,Rosetta estimate
+theta_fc,0.24,-,theta_r + MHC
+% Sand,65,-,Assume use mix with 50% to 60% sand + another 5% from SiL
+% Silt,30,-,"Assume 20%*60% = 15% from SiL, mosly silt in compost"
+% Clay,5,-,"Assume only clay comes from SiL soil, 20%*19% is about 5%"
+theta_s,0.42,-,Rosetta estimate
+Alpha,1.56,1/m,Rosetta estimate
+n,1.39,-,Rosetta estimate
