@@ -20,28 +20,22 @@
 library(ggplot2) # For plotting
 library(cowplot) # For plot grid
 
-# Define project directories
-project.dir <- 'J:/git_research/projects/parcel_soil_amendment'
-scripts.dir <- sprintf('%s/src/model_outputs', project.dir)
-results.dir <- sprintf('%s/results', project.dir)
-model.output.dir <- sprintf('%s/model_outputs', results.dir)
-
 # Source functions
-source(sprintf("%s/functions_hourly_fluxes.R", scripts.dir))
+source("src/model_outputs/functions_hourly_fluxes.R")
 
 # Data
-runname.info <- read.csv(sprintf('%s/runname.info.csv',results.dir))
-runname <- as.character(runname.info$runname)
+runname.info <- read.csv('results/runname.info.csv')
+runname      <- as.character(runname.info$runname)
 
 # 2. LOAD AND RESAVE FLUXES ---------------------------------------------------
 # Define model run parameters
-nhrs = 5136
+nhrs <- 5136
 hour <- c(1:nhrs)
 
 # Initalize indicies and summary data frames
 cum.errors <- NULL
-fluxes <- NULL
-i <- 0
+fluxes     <- NULL
+i          <- 0
 
 count = 1
 # Retrieve and re-save hourly flux data for each model run
@@ -54,49 +48,48 @@ for (soil in c('measured','loam','clay_loam')) {
       hourly.balance <- NULL
       
       # Define filenames for csv input and Rda output
-      input.filepath <- sprintf("%s/%s/%s_%s_hourly_balance.csv", 
-                                model.output.dir, this.run, soil, this.run)
-      output.filepath <- sprintf('%s/%s/%s_%s_hourly_balance.Rda', 
-                                 model.output.dir, this.run, soil, this.run)
+      input.filepath  <- sprintf("results/model_outputs/%s/%s_%s_hourly_balance.csv", 
+                                 this.run, soil, this.run)
+      output.filepath <- sprintf('results/model_outputs/%s/%s_%s_hourly_balance.Rda', 
+                                 this.run, soil, this.run)
       
       if (file.exists(input.filepath)){
-        
         # Load data from csv, replace colnames with R versions
-        hourly.balance <- read.csv(input.filepath)
-        colnames(hourly.balance) = c("precipitation", 
-                                     "delta.storage.surface",
-                                     "delta.storage.canopy",
-                                     "delta.storage.snow",
-                                     "delta.storage.subsurface",
-                                     "evaptranssum",
-                                     "evaporation", 
-                                     "surface.runoff",
-                                     "transpiration", 
-                                     "deep.drainage",
-                                     "recharge")
+        hourly.balance           <- read.csv(input.filepath)
+        colnames(hourly.balance) <- c("precipitation", 
+                                      "delta.storage.surface",
+                                      "delta.storage.canopy",
+                                      "delta.storage.snow",
+                                      "delta.storage.subsurface",
+                                      "evaptranssum",
+                                      "evaporation", 
+                                      "surface.runoff",
+                                      "transpiration", 
+                                      "deep.drainage",
+                                      "recharge")
         
         # Calculate this run's errors and add to this run's output dataframe
-        errors <- calculate_balance_errors(hourly.balance)
-        hourly.balance <- as.data.frame(cbind(hour,hourly.balance, errors))
+        errors         <- calculate_balance_errors(hourly.balance)
+        hourly.balance <- as.data.frame(cbind(hour, hourly.balance, errors))
         
         # Add this run's final cumulative errors to summary error dataframe
         this.cum.errs <- subset(hourly.balance, hour==nhrs,
                                 select = c("cum.err.depth.CLM", "cum.err.rel.CLM",
                                            "cum.err.depth.PF", "cum.err.rel.PF",
                                            "cum.err.depth", "cum.err.rel"))
-        cum.errors <- as.data.frame(rbind(cum.errors, this.cum.errs))
+        cum.errors    <- as.data.frame(rbind(cum.errors, this.cum.errs))
         
         # Add this run's cumulative P, RO, DD, and ET to summary flux dataframe
-        fluxes$soil[count] <- soil
-        fluxes$runname[count] <- this.run
-        fluxes$precip.depth[count] <- sum(hourly.balance$precipitation)
-        fluxes$runoff.depth[count] <- sum(hourly.balance$surface.runoff)
-        fluxes$ET.depth[count] <- sum(hourly.balance$evaporation) + 
-          sum(hourly.balance$transpiration)
+        fluxes$soil[count]           <- soil
+        fluxes$runname[count]        <- this.run
+        fluxes$precip.depth[count]   <- sum(hourly.balance$precipitation)
+        fluxes$runoff.depth[count]   <- sum(hourly.balance$surface.runoff)
+        fluxes$ET.depth[count]       <- sum(hourly.balance$evaporation) + 
+                                        sum(hourly.balance$transpiration)
         fluxes$drainage.depth[count] <- sum(hourly.balance$deep.drainage)
         
         # Save data frame to Rda file
-        save(hourly.balance, file = output.filepath)
+        # save(hourly.balance, file = output.filepath)
         count = count + 1
       }
     }
@@ -104,93 +97,76 @@ for (soil in c('measured','loam','clay_loam')) {
 }
 
 # 3. PROCESS FLUXES ----------------------------------------------------
-
 # Convert fluxes as DEPTH from list to dataframe
 fluxes <- as.data.frame(fluxes)
 
 # Fluxes as PERCENT
-fluxes$runoff.precip = 100*fluxes$runoff.depth/fluxes$precip.depth
-fluxes$ET.precip = 100*fluxes$ET.depth/fluxes$precip.depth
-fluxes$drainage.precip = 100*fluxes$drainage.depth/fluxes$precip.depth
+fluxes$runoff.precip   <- 100*fluxes$runoff.depth/fluxes$precip.depth
+fluxes$ET.precip       <- 100*fluxes$ET.depth/fluxes$precip.depth
+fluxes$drainage.precip <- 100*fluxes$drainage.depth/fluxes$precip.depth
 
-fluxes = merge(fluxes, runname.info, by = "runname")
-
-no.amendment.parcel <- subset(fluxes, runname == 'amend_pixels_TWI_0')
+fluxes <- merge(fluxes, runname.info, by = "runname")
 
 # Difference as DEPTH
-fluxes$runoff.diff = NA
-fluxes$ET.diff = NA
-fluxes$drainage.diff = NA
-
-for (soil.type in c('measured','loam','clay_loam')) {
-  fluxes$runoff.diff[which(fluxes$soil == soil.type)] = fluxes$runoff.depth[which(fluxes$soil == soil.type)] - 
-    no.amendment.parcel$runoff.depth[which(no.amendment.parcel$soil == soil.type)]
-  fluxes$ET.diff[which(fluxes$soil == soil.type)] = fluxes$ET.depth[which(fluxes$soil == soil.type)] - 
-    no.amendment.parcel$ET.depth[which(no.amendment.parcel$soil == soil.type)]
-  fluxes$drainage.diff[which(fluxes$soil == soil.type)] = fluxes$drainage.depth[which(fluxes$soil == soil.type)] - 
-    no.amendment.parcel$drainage.depth[which(no.amendment.parcel$soil == soil.type)]
-}
+fluxes <- fluxes %>%
+          group_by(soil) %>%
+          mutate(runoff.diff = runoff.depth - 
+                              (fluxes %>% group_by(soil) %>% filter(runname == "amend_pixels_TWI_0"))$runoff.depth,
+                 ET.diff = ET.depth - filter(fluxes, runname == "amend_pixels_TWI_0")$ET.depth,
+                 drainage.diff = drainage.depth - filter(fluxes, runname == "amend_pixels_TWI_0")$drainage.depth)
 
 # Difference as PERCENT PRECIP
-fluxes$runoff.diff.precip = fluxes$runoff.diff/fluxes$precip.depth
-fluxes$drainage.diff.precip = fluxes$drainage.diff/fluxes$precip.depth
-fluxes$ET.diff.precip = fluxes$ET.diff/fluxes$precip.depth
+fluxes$runoff.diff.precip   <- fluxes$runoff.diff/fluxes$precip.depth
+fluxes$drainage.diff.precip <- fluxes$drainage.diff/fluxes$precip.depth
+fluxes$ET.diff.precip       <- fluxes$ET.diff/fluxes$precip.depth
 
 # Difference as PERCENT MAX DIFF
-fluxes$runoff.diff.rel = NA
-fluxes$ET.diff.rel = NA
-fluxes$drainage.diff.rel = NA
-
-for (soil.type in c('measured','loam','clay_loam')) {
-  max.diff.runoff = abs(min(fluxes$runoff.diff[which(fluxes$soil == soil.type)]))
-  max.diff.ET = max(fluxes$ET.diff[which(fluxes$soil == soil.type)])
-  max.diff.drainage = max(fluxes$drainage.diff[which(fluxes$soil == soil.type)])
-  fluxes$runoff.diff.rel[which(fluxes$soil == soil.type)] = 100*abs(fluxes$runoff.diff[which(fluxes$soil == soil.type)]/max.diff.runoff)
-  fluxes$ET.diff.rel[which(fluxes$soil == soil.type)] = 100*fluxes$ET.diff[which(fluxes$soil == soil.type)]/max.diff.ET
-  fluxes$drainage.diff.rel[which(fluxes$soil == soil.type)] = 100*fluxes$drainage.diff[which(fluxes$soil == soil.type)]/max.diff.drainage
-}
+fluxes <- fluxes %>%
+          group_by(soil) %>%
+          mutate(runoff.diff.rel = 100*abs(runoff.diff/max(runoff.diff)),
+                 ET.diff.rel = 100*ET.diff/max(ET.diff),
+                 drainage.diff.rel = 100*drainage.diff/max(drainage.diff))
 
 # 4. SAVE PROCESSED DATA FRAMES -----------------------------------------------
-save(fluxes, file = sprintf('%s/fluxes_summary.Rda', results.dir))
-
+# save(fluxes, file = sprintf('%s/fluxes_summary.Rda', results.dir))
 
 # 5. PLOT WATER BALANCE ERRORS ------------------------------------------------
-x.label = "Cumulative Error as Depth (mm)"
-y.label = "Cumulative Relative Error (-)"
-x.intercept = 1
-y.intercept = 0.01
+x.label     <- "Cumulative Error as Depth (mm)"
+y.label     <- "Cumulative Relative Error (-)"
+x.intercept <- 1
+y.intercept <- 0.01
 
-plot.err.CLM = ggplot() +
+plot.err.CLM <- ggplot() +
+                geom_point(data = cum.errors,
+                           aes(x = abs(cum.err.depth.CLM),
+                               y = abs(cum.err.rel.CLM))) + 
+                scale_y_log10() +
+                scale_x_log10() +
+                labs(x = x.label, y = y.label, title = "CLM") +
+                geom_vline(xintercept = x.intercept) + 
+                geom_hline(yintercept = y.intercept) +
+                theme_bw()
+
+plot.err.PF <- ggplot() +
                geom_point(data = cum.errors,
-                          aes(x = abs(cum.err.depth.CLM),
-                              y = abs(cum.err.rel.CLM))) + 
+                          aes(x = abs(cum.err.depth.PF),
+                              y = abs(cum.err.rel.PF))) + 
                scale_y_log10() +
                scale_x_log10() +
-               labs(x = x.label, y = y.label, title = "CLM") +
+               labs(x = x.label, y = y.label, title = "PF") +
                geom_vline(xintercept = x.intercept) + 
                geom_hline(yintercept = y.intercept) +
                theme_bw()
 
-plot.err.PF = ggplot() +
-              geom_point(data = cum.errors,
-                         aes(x = abs(cum.err.depth.PF),
-                             y = abs(cum.err.rel.PF))) + 
-              scale_y_log10() +
-              scale_x_log10() +
-              labs(x = x.label, y = y.label, title = "PF") +
-              geom_vline(xintercept = x.intercept) + 
-              geom_hline(yintercept = y.intercept) +
-              theme_bw()
-
-plot.err = ggplot() +
-           geom_point(data = cum.errors,
-                      aes(x = abs(cum.err.depth),
-                          y = abs(cum.err.rel))) + 
-           scale_y_log10() +
-           scale_x_log10() +
-           labs(x = x.label, y = y.label, title = "Overall") +
-           geom_vline(xintercept = x.intercept) + 
-           geom_hline(yintercept = y.intercept) +
-           theme_bw()
+plot.err <- ggplot() +
+            geom_point(data = cum.errors,
+                       aes(x = abs(cum.err.depth),
+                           y = abs(cum.err.rel))) + 
+            scale_y_log10() +
+            scale_x_log10() +
+            labs(x = x.label, y = y.label, title = "Overall") +
+            geom_vline(xintercept = x.intercept) + 
+            geom_hline(yintercept = y.intercept) +
+            theme_bw()
 
 plot_grid(plot.err, plot.err.PF, plot.err.CLM, ncol = 3)

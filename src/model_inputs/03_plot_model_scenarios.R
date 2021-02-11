@@ -28,7 +28,7 @@ results.dir <- sprintf('%s/results', project.dir)
 # Source functions
 
 # Data
-load(sprintf('%s/runname.info.Rda',results.dir))
+load('results/runname.info.Rda')
 
 
 # 2. PLOT ---------------------------------------------------------------------

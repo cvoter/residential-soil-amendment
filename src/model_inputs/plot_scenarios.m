@@ -8,7 +8,10 @@ set(0,'defaultTextFontSize',10,'defaultTextFontName','Segoe UI Semilight',...
 
 %% DATA PATHS AND CONSTANTS
 layout_dir = '../../data/layouts';
+model_input_dir = '../../data/model_inputs';
+figure_dir = '../../results/figures';
 top_percent_pixels = [0, 0.25, 0.5, 1, 2.5, 5, 10, 25, 50, 100];
+percent_strings = {'0', '0.25', '0.5', '1', '2.5', '5', '10', '25', '50', '100'};
 percent_labels = {'0%', '0.25%', '0.5%', '1%', '2.5%', '5%', '10%', '25%', '50%', '100%'};
 
 % Get Domain Info
@@ -28,6 +31,62 @@ plot_on = 0;
 [drainarea, TWI, ~] = drainage_area_TWI(slopeX,slopeY,mask,[],[],dx,dy,plot_on);
 draintype = {'drain','TWI'};
 
+%% RANDOM
+amended_pixels = zeros(size(parcelCover));
+for p = 2:length(top_percent_pixels)
+    runname = sprintf("amend_pixels_clay_loam_%s", percent_strings{p});
+    if p == length(top_percent_pixels)
+        amended_pixels = amended_pixels + 1;
+    else
+        load(sprintf('%s/%s/domainInfo.mat', model_input_dir, runname))
+        cellArea = dx*dy;
+        [Xy,Yx] = meshgrid(x,y);
+        xL = 0; xU = nx*dx;
+        yL = 0; yU = ny*dy;
+        zL = 0; zU = nz*dz;
+        
+        amended_pixels(parcelCover == 10) = amended_pixels(parcelCover == 10) + 1;
+    end
+end
+    
+% Plot
+figure(1)
+hold on
+pcolor(Xy,Yx,amended_pixels.*mask)
+shading flat
+rectangle('Position',[xL,yL,(xU-xL),(yU-yL)],'EdgeColor','k','LineStyle',...
+    '-','LineWidth',1.5);
+colormap(brewermap([9],'Reds'))
+caxis([0.5,9.5])
+c = colorbar;
+c.Ticks = 1:9;
+c.Box = 'off';
+c.TickLabels = fliplr(percent_labels(2:end));
+c.Label.String = "% at which Amendment First Introduced";
+xlabel('Distance (m)');
+ylabel('Distance (m)');
+title("Random")
+axis equal
+axis([xL xU yL yU])
+set(gca,'Color',[0.7 0.7 0.7])
+hold off
+
+set(gcf,'renderer','Painters')
+imagetype = {'svg','png'};
+for i = 1:2
+    saveas(gcf,sprintf('%s/plot_random.%s', figure_dir, imagetype{i}),...
+        imagetype{i})
+end
+
+%% RELOAD PARCEL
+% Get Domain Info
+load(sprintf('%s/domainInfo.mat',layout_dir))
+cellArea = dx*dy;
+[Xy,Yx] = meshgrid(x,y);
+xL = 0; xU = nx*dx;
+yL = 0; yU = ny*dy;
+zL = 0; zU = nz*dz;
+
 %% DRAINAGE AREA
 amended_pixels = zeros(size(parcelCover));
 for p = 1:length(top_percent_pixels)
@@ -36,7 +95,7 @@ for p = 1:length(top_percent_pixels)
 end
 
 % Plot
-figure(1)
+figure(2)
 hold on
 pcolor(Xy,Yx,amended_pixels.*mask)
 shading flat
@@ -57,6 +116,13 @@ axis([xL xU yL yU])
 set(gca,'Color',[0.7 0.7 0.7])
 hold off
 
+set(gcf,'renderer','Painters')
+imagetype = {'svg','png'};
+for i = 1:2
+    saveas(gcf,sprintf('%s/plot_drainage.%s', figure_dir, imagetype{i}),...
+        imagetype{i})
+end
+
 %% DRAINAGE AREA
 amended_pixels = zeros(size(parcelCover));
 for p = 1:length(top_percent_pixels)
@@ -65,7 +131,7 @@ for p = 1:length(top_percent_pixels)
 end
 
 % Plot
-figure(2)
+figure(3)
 hold on
 pcolor(Xy,Yx,amended_pixels.*mask)
 shading flat
@@ -85,6 +151,13 @@ axis equal
 axis([xL xU yL yU])
 set(gca,'Color',[0.7 0.7 0.7])
 hold off
+
+set(gcf,'renderer','Painters')
+imagetype = {'svg','png'};
+for i = 1:2
+    saveas(gcf,sprintf('%s/plot_twi.%s', figure_dir, imagetype{i}),...
+        imagetype{i})
+end
 
 %% FEATURE STUFF
 amended_pixels = zeros(size(parcelCover));
@@ -149,7 +222,7 @@ end
 % amended_pixels(amended_pixels == 0) = 9;
 
 % Plot
-figure(3)
+figure(4)
 hold on
 pcolor(Xy,Yx,amended_pixels.*mask)
 shading flat
@@ -162,7 +235,7 @@ caxis([-0.5,8.5])
 c = colorbar;
 c.Ticks = 0:8;
 c.Box = 'off';
-c.TickLabels = {"Downspout","Sidewalk","Frontwalk","Driveway","Large","Small"};
+c.TickLabels = ["","Downspout","Sidewalk","Frontwalk","Driveway","Large","Small"];
 c.Label.String = "Size of Amendment";
 xlabel('Distance (m)');
 ylabel('Distance (m)');
@@ -171,4 +244,11 @@ axis equal
 axis([xL xU yL yU])
 set(gca,'Color',[0.7 0.7 0.7])
 hold off
+
+set(gcf,'renderer','Painters')
+imagetype = {'svg','png'};
+for i = 1:2
+    saveas(gcf,sprintf('%s/plot_features.%s', figure_dir, imagetype{i}),...
+        imagetype{i})
+end
 
